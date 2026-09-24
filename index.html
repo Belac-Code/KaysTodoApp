@@ -2,108 +2,128 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Todo App with Secured Admin Panel</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simple Todo & Admin System</title>
   <style>
-    body { font-family: sans-serif; max-width: 650px; margin: 30px auto; padding: 20px; }
-    .card { border: 1px solid #ccc; padding: 20px; margin-bottom: 20px; border-radius: 8px; }
-    input, button { margin: 5px 0; padding: 10px; width: 100%; box-sizing: border-box; }
-    button { background: #007bff; color: white; border: none; cursor: pointer; border-radius: 4px; }
-    .btn-danger { background: #dc3545; width: auto; padding: 5px 10px; margin-left: 10px; }
-    .admin-card { background: #fdf2f2; border-left: 5px solid #dc3545; }
-    .user-box { background: white; border: 1px solid #ddd; padding: 12px; margin: 10px 0; border-radius: 6px; }
-    .active-tag { color: green; font-weight: bold; }
+    * { box-sizing: border-box; font-family: sans-serif; }
+    body { max-width: 600px; margin: 30px auto; padding: 0 15px; background: #f4f4f9; }
+    .card { background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 20px; }
+    input { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ccc; border-radius: 4px; }
+    button { width: 100%; padding: 10px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 5px; }
+    .btn-primary { background: #007bff; color: white; }
+    .btn-secondary { background: #6c757d; color: white; }
+    .btn-danger { background: #dc3545; color: white; width: auto; padding: 5px 10px; margin: 0; }
+    ul { list-style: none; padding: 0; }
+    li { background: #f8f9fa; padding: 10px; border: 1px solid #eee; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; border-radius: 4px; }
+    .badge { background: #17a2b8; color: white; padding: 3px 8px; border-radius: 12px; font-size: 12px; }
   </style>
 </head>
 <body>
 
-  <h1>Simple Todo & Admin System</h1>
+  <h2>Simple Todo & Admin System</h2>
 
-  <!-- 1. USER AUTH -->
-  <div class="card" id="userAuthSection">
-    <h2>User Access (Sign Up / Login)</h2>
-    <input type="text" id="name" placeholder="Full Name (for signup)">
-    <input type="email" id="email" placeholder="Email">
-    <input type="password" id="password" placeholder="Password">
-    <button onclick="handleSignup()">Sign Up</button>
-    <button onclick="handleLogin()" style="background:#6c757d;">Login</button>
+  <!-- UNIFIED LOGIN / SIGNUP FORM -->
+  <div class="card" id="authCard">
+    <h3>Account Access</h3>
+    <input type="text" id="nameInput" placeholder="Full Name (for signup only)" />
+    <input type="email" id="emailInput" placeholder="Email" />
+    <input type="password" id="passwordInput" placeholder="Password" />
+
+    <button onclick="handleSignUp()" class="btn-primary">Sign Up</button>
+    <button onclick="handleLogin()" class="btn-secondary">Login</button>
   </div>
 
-  <!-- 2. USER TODO APP -->
-  <div class="card" id="todoSection" style="display:none;">
-    <h2>Welcome, <span id="userName"></span>!</h2>
-    <input type="text" id="todoInput" placeholder="Enter a task...">
-    <button onclick="addTodo()">Add Task</button>
+  <!-- USER DASHBOARD -->
+  <div class="card" id="userDashboard" style="display: none;">
+    <h3>Welcome, <span id="userNameDisplay"></span>!</h3>
+    <input type="text" id="todoInput" placeholder="Enter a new todo..." />
+    <button onclick="addTodo()" class="btn-primary">Add Todo</button>
+
+    <h4>Your Todos:</h4>
     <ul id="todoList"></ul>
+    <button onclick="logout()" class="btn-secondary">Logout</button>
   </div>
 
-  <hr>
-
-  <!-- 3. ADMIN PANEL -->
-  <div class="card admin-card">
-    <h2>Admin Dashboard</h2>
+  <!-- ADMIN DASHBOARD -->
+  <div class="card" id="adminDashboard" style="display: none;">
+    <h3>Admin Control Panel <span class="badge">Admin</span></h3>
+    <p>Manage active users and system data below:</p>
     
-    <!-- Admin Login Sub-Form -->
-    <div id="adminLoginForm">
-      <p><strong>Default Admin Logins:</strong> admin@app.com / admin123</p>
-      <input type="email" id="adminEmail" placeholder="Admin Email">
-      <input type="password" id="adminPassword" placeholder="Admin Password">
-      <button onclick="handleAdminLogin()" style="background: #28a745;">Login as Admin</button>
-    </div>
+    <h4>Registered Users:</h4>
+    <ul id="userList"></ul>
 
-    <!-- Admin Content Area (Hidden until logged in) -->
-    <div id="adminContent" style="display:none;">
-      <p style="color:green;">✔ Admin Authenticated</p>
-      <button onclick="fetchAdminData()" style="background: #17a2b8;">Refresh User List</button>
-      <div id="adminUserList"></div>
-    </div>
+    <button onclick="logout()" class="btn-secondary">Logout</button>
   </div>
 
   <script>
-    // const API_URL = 'https://kaystodoapp.onrender.com/api';
     const API_URL = '/api';
     let currentUser = null;
-    let isAdminLoggedIn = false;
 
-    // --- STANDARD USER LOGIC ---
-    async function handleSignup() {
-      const name = document.getElementById('name').value;
-      const email = document.getElementById('email').value;
-      const password = document.getElementById('password').value;
-
-      const res = await fetch(`${API_URL}/signup`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password })
-      });
-
-      const data = await res.json();
-      if (data.error) return alert(data.error);
-
-      alert(data.message);
-      currentUser = data.user;
-      showTodoApp();
-    }
-
+    // LOGIN FUNCTION (Unified)
     async function handleLogin() {
-      const email = document.getElementById('email').value;
-      const password = document.getElementById('password').value;
+      const email = document.getElementById('emailInput').value;
+      const password = document.getElementById('passwordInput').value;
 
-      const res = await fetch(`${API_URL}/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
+      try {
+        const res = await fetch(`${API_URL}/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
 
-      const data = await res.json();
-      if (data.error) return alert(data.error);
+        const data = await res.json();
 
-      alert(data.message);
-      currentUser = data.user;
-      showTodoApp();
+        if (!res.ok) return alert(data.error);
+
+        document.getElementById('authCard').style.display = 'none';
+
+        if (data.isAdmin) {
+          document.getElementById('adminDashboard').style.display = 'block';
+          loadAdminUsers();
+        } else {
+          currentUser = data.user;
+          document.getElementById('userNameDisplay').textContent = currentUser.name;
+          document.getElementById('userDashboard').style.display = 'block';
+          renderTodos(currentUser.todos);
+        }
+      } catch (err) {
+        alert('Could not connect to server.');
+      }
     }
 
+    // SIGNUP FUNCTION
+    async function handleSignUp() {
+      const name = document.getElementById('nameInput').value;
+      const email = document.getElementById('emailInput').value;
+      const password = document.getElementById('passwordInput').value;
+
+      if (!name || !email || !password) return alert('Please fill in all fields.');
+
+      try {
+        const res = await fetch(`${API_URL}/signup`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email, password })
+        });
+
+        const data = await res.json();
+        if (!res.ok) return alert(data.error);
+
+        alert('Account created! Logging you in...');
+        currentUser = data.user;
+        document.getElementById('authCard').style.display = 'none';
+        document.getElementById('userNameDisplay').textContent = currentUser.name;
+        document.getElementById('userDashboard').style.display = 'block';
+        renderTodos([]);
+      } catch (err) {
+        alert('Could not connect to server.');
+      }
+    }
+
+    // USER TODO FUNCTIONS
     async function addTodo() {
       const text = document.getElementById('todoInput').value;
+      if (!text) return;
 
       const res = await fetch(`${API_URL}/todos`, {
         method: 'POST',
@@ -112,94 +132,59 @@
       });
 
       const data = await res.json();
-      renderTodos(data.todos);
-      document.getElementById('todoInput').value = '';
-    }
-
-    function showTodoApp() {
-      document.getElementById('userAuthSection').style.display = 'none';
-      document.getElementById('todoSection').style.display = 'block';
-      document.getElementById('userName').innerText = currentUser.name;
-      renderTodos(currentUser.todos || []);
+      if (res.ok) {
+        document.getElementById('todoInput').value = '';
+        renderTodos(data.todos);
+      }
     }
 
     function renderTodos(todos) {
-      const ul = document.getElementById('todoList');
-      ul.innerHTML = todos.map(t => `<li>${t.text}</li>`).join('');
+      const list = document.getElementById('todoList');
+      list.innerHTML = todos.map(t => `<li>${t.text}</li>`).join('');
     }
 
-    // --- ADMIN LOGIC ---
-
-    // 1. Admin Login
-    async function handleAdminLogin() {
-      const email = document.getElementById('adminEmail').value;
-      const password = document.getElementById('adminPassword').value;
-
-      const res = await fetch(`${API_URL}/admin/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
-
-      const data = await res.json();
-      if (data.error) return alert(data.error);
-
-      isAdminLoggedIn = true;
-      document.getElementById('adminLoginForm').style.display = 'none';
-      document.getElementById('adminContent').style.display = 'block';
-      
-      // Auto fetch users upon login
-      fetchAdminData();
-    }
-
-    // 2. Fetch All Users
-    async function fetchAdminData() {
+    // ADMIN FUNCTIONS
+    async function loadAdminUsers() {
       const res = await fetch(`${API_URL}/admin/users`, {
-        headers: { 'x-is-admin': 'true' } // Custom header passing admin check
+        headers: { 'x-is-admin': 'true' }
       });
       const users = await res.json();
 
-      renderAdminUsers(users);
+      const list = document.getElementById('userList');
+      if (users.length === 0) {
+        list.innerHTML = '<li>No users registered yet.</li>';
+        return;
+      }
+
+      list.innerHTML = users.map(u => `
+        <li>
+          <div>
+            <strong>${u.name}</strong> (${u.email}) - ${u.todos.length} todos
+          </div>
+          <button onclick="deleteUser(${u.id})" class="btn-danger">Delete</button>
+        </li>
+      `).join('');
     }
 
-    // 3. Delete User from Back End
-    async function deleteUser(userId) {
+    async function deleteUser(id) {
       if (!confirm('Are you sure you want to delete this user?')) return;
 
-      // Notice HTTP Method is 'DELETE'
-      const res = await fetch(`${API_URL}/admin/users/${userId}`, {
+      const res = await fetch(`${API_URL}/admin/users/${id}`, {
         method: 'DELETE',
         headers: { 'x-is-admin': 'true' }
       });
 
-      const data = await res.json();
-      alert(data.message);
-
-      // Re-render user list with updated data from server
-      renderAdminUsers(data.users);
+      if (res.ok) loadAdminUsers();
     }
 
-    // Helper function to draw user cards in Admin panel
-    function renderAdminUsers(users) {
-      const container = document.getElementById('adminUserList');
-      
-      if (users.length === 0) {
-        container.innerHTML = '<p>No users found on the system.</p>';
-        return;
-      }
-
-      container.innerHTML = users.map(user => `
-        <div class="user-box">
-          <strong>ID:</strong> ${user.id} <br>
-          <strong>Name:</strong> ${user.name} <br>
-          <strong>Email:</strong> ${user.email} <br>
-          <strong>Password:</strong> <code>${user.password}</code> <br>
-          <strong>Status:</strong> <span class="active-tag">${user.isActive ? 'Active' : 'Inactive'}</span> <br>
-          <strong>Total Todos:</strong> ${user.todos.length}
-          <br><br>
-          <button class="btn-danger" onclick="deleteUser(${user.id})">Delete User</button>
-        </div>
-      `).join('');
+    function logout() {
+      currentUser = null;
+      document.getElementById('userDashboard').style.display = 'none';
+      document.getElementById('adminDashboard').style.display = 'none';
+      document.getElementById('authCard').style.display = 'block';
+      document.getElementById('emailInput').value = '';
+      document.getElementById('passwordInput').value = '';
+      document.getElementById('nameInput').value = '';
     }
   </script>
 </body>
