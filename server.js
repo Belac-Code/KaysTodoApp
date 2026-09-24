@@ -82,32 +82,168 @@
 // });
 
 // server.js
+// import express from 'express';
+// import cors from 'cors';
+
+// const app = express();
+
+// app.use(cors()); 
+// app.use(express.json());
+
+// // IN-MEMORY DATABASE
+// const users = []; // Stores standard users: { id, name, email, password, isActive, todos }
+
+// // ADMIN CREDENTIALS (Hardcoded for simple testing)
+// const ADMIN_CREDENTIALS = {
+//   email: 'admin@app.com',
+//   password: 'admin123'
+// };
+
+// // -------------------------------------------------------------------
+// // USER ROUTES: Signup & Login
+// // -------------------------------------------------------------------
+
+// app.get('/', (req, res) => {
+//   res.send('API is running successfully!');
+// });
+
+
+// app.post('/api/signup', (req, res) => {
+//   const { name, email, password } = req.body;
+
+//   const existingUser = users.find(u => u.email === email);
+//   if (existingUser) {
+//     return res.status(400).json({ error: 'User already exists' });
+//   }
+
+//   const newUser = {
+//     id: Date.now(), // Unique ID using timestamp
+//     name,
+//     email,
+//     password,
+//     isActive: true,
+//     todos: []
+//   };
+
+//   users.push(newUser);
+//   res.json({ message: 'Account created successfully!', user: newUser });
+// });
+
+// app.post('/api/login', (req, res) => {
+//   const { email, password } = req.body;
+
+//   const user = users.find(u => u.email === email && u.password === password);
+//   if (!user) {
+//     return res.status(401).json({ error: 'Invalid email or password' });
+//   }
+
+//   user.isActive = true;
+//   res.json({ message: 'Login successful!', user });
+// });
+
+// app.post('/api/todos', (req, res) => {
+//   const { userId, text } = req.body;
+
+//   const user = users.find(u => u.id === userId);
+//   if (!user) return res.status(404).json({ error: 'User not found' });
+
+//   const newTodo = { id: Date.now(), text, completed: false };
+//   user.todos.push(newTodo);
+
+//   res.json({ message: 'Todo added!', todos: user.todos });
+// });
+
+// // -------------------------------------------------------------------
+// // ADMIN ROUTE 1: Admin Login
+// // -------------------------------------------------------------------
+// app.post('/api/admin/login', (req, res) => {
+//   const { email, password } = req.body;
+
+//   if (email === ADMIN_CREDENTIALS.email && password === ADMIN_CREDENTIALS.password) {
+//     // Return an admin key/token flag to verify identity
+//     res.json({ message: 'Admin authenticated!', isAdmin: true });
+//   } else {
+//     res.status(401).json({ error: 'Invalid Admin credentials!' });
+//   }
+// });
+
+// // -------------------------------------------------------------------
+// // ADMIN ROUTE 2: Get All Users (Protected)
+// // -------------------------------------------------------------------
+// app.get('/api/admin/users', (req, res) => {
+//   // Simple check using custom request header
+//   const isAdmin = req.headers['x-is-admin'];
+//   if (isAdmin !== 'true') {
+//     return res.status(403).json({ error: 'Access denied. Admins only.' });
+//   }
+
+//   res.json(users);
+// });
+
+// // -------------------------------------------------------------------
+// // ADMIN ROUTE 3: Delete a User Off the System (DELETE Method)
+// // -------------------------------------------------------------------
+// app.delete('/api/admin/users/:id', (req, res) => {
+//   const isAdmin = req.headers['x-is-admin'];
+//   if (isAdmin !== 'true') {
+//     return res.status(403).json({ error: 'Access denied. Admins only.' });
+//   }
+
+//   const userId = parseInt(req.params.id);
+
+//   // Find index of user in our array
+//   const userIndex = users.findIndex(u => u.id === userId);
+
+//   if (userIndex === -1) {
+//     return res.status(404).json({ error: 'User not found' });
+//   }
+
+//   // Remove 1 user from array at userIndex
+//   const deletedUser = users.splice(userIndex, 1)[0];
+
+//   res.json({ message: `User ${deletedUser.name} deleted successfully!`, users });
+// });
+
+// app.listen(5000, () => {
+//   console.log('Server running on http://localhost:5000');
+// });
+
+
+// server.js
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 
 app.use(cors()); 
 app.use(express.json());
 
-// IN-MEMORY DATABASE
-const users = []; // Stores standard users: { id, name, email, password, isActive, todos }
+// Serve static frontend files (like index.html)
+app.use(express.static(__dirname));
 
-// ADMIN CREDENTIALS (Hardcoded for simple testing)
+// IN-MEMORY DATABASE
+const users = []; 
+
 const ADMIN_CREDENTIALS = {
   email: 'admin@app.com',
   password: 'admin123'
 };
 
 // -------------------------------------------------------------------
-// USER ROUTES: Signup & Login
+// FRONTEND ROUTE: Serve index.html on root '/'
 // -------------------------------------------------------------------
-
 app.get('/', (req, res) => {
-  res.send('API is running successfully!');
+  res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-
+// -------------------------------------------------------------------
+// USER ROUTES: Signup & Login
+// -------------------------------------------------------------------
 app.post('/api/signup', (req, res) => {
   const { name, email, password } = req.body;
 
@@ -117,7 +253,7 @@ app.post('/api/signup', (req, res) => {
   }
 
   const newUser = {
-    id: Date.now(), // Unique ID using timestamp
+    id: Date.now(),
     name,
     email,
     password,
@@ -154,24 +290,19 @@ app.post('/api/todos', (req, res) => {
 });
 
 // -------------------------------------------------------------------
-// ADMIN ROUTE 1: Admin Login
+// ADMIN ROUTES
 // -------------------------------------------------------------------
 app.post('/api/admin/login', (req, res) => {
   const { email, password } = req.body;
 
   if (email === ADMIN_CREDENTIALS.email && password === ADMIN_CREDENTIALS.password) {
-    // Return an admin key/token flag to verify identity
     res.json({ message: 'Admin authenticated!', isAdmin: true });
   } else {
     res.status(401).json({ error: 'Invalid Admin credentials!' });
   }
 });
 
-// -------------------------------------------------------------------
-// ADMIN ROUTE 2: Get All Users (Protected)
-// -------------------------------------------------------------------
 app.get('/api/admin/users', (req, res) => {
-  // Simple check using custom request header
   const isAdmin = req.headers['x-is-admin'];
   if (isAdmin !== 'true') {
     return res.status(403).json({ error: 'Access denied. Admins only.' });
@@ -180,9 +311,6 @@ app.get('/api/admin/users', (req, res) => {
   res.json(users);
 });
 
-// -------------------------------------------------------------------
-// ADMIN ROUTE 3: Delete a User Off the System (DELETE Method)
-// -------------------------------------------------------------------
 app.delete('/api/admin/users/:id', (req, res) => {
   const isAdmin = req.headers['x-is-admin'];
   if (isAdmin !== 'true') {
@@ -190,20 +318,17 @@ app.delete('/api/admin/users/:id', (req, res) => {
   }
 
   const userId = parseInt(req.params.id);
-
-  // Find index of user in our array
   const userIndex = users.findIndex(u => u.id === userId);
 
   if (userIndex === -1) {
     return res.status(404).json({ error: 'User not found' });
   }
 
-  // Remove 1 user from array at userIndex
   const deletedUser = users.splice(userIndex, 1)[0];
-
   res.json({ message: `User ${deletedUser.name} deleted successfully!`, users });
 });
 
-app.listen(5000, () => {
-  console.log('Server running on http://localhost:5000');
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
