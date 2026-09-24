@@ -351,23 +351,12 @@ app.use(express.json());
 app.use(express.static(__dirname));
 
 // IN-MEMORY DATABASE
+const users = [];
+
 const ADMIN_CREDENTIALS = {
   email: 'admin@app.com',
   password: 'admin123'
 };
-
-
-const users = [
-  {
-    id: 1,
-    name: 'System Admin',
-    email: ADMIN_CREDENTIALS.email,
-    password: ADMIN_CREDENTIALS.password,
-    isActive: true,
-    todos: []
-  }
-];
-
 
 // -------------------------------------------------------------------
 // FRONTEND ROUTE
