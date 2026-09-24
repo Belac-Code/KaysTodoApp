@@ -102,6 +102,12 @@ const ADMIN_CREDENTIALS = {
 // -------------------------------------------------------------------
 // USER ROUTES: Signup & Login
 // -------------------------------------------------------------------
+
+app.get('/', (req, res) => {
+  res.send('API is running successfully!');
+});
+
+
 app.post('/api/signup', (req, res) => {
   const { name, email, password } = req.body;
 
