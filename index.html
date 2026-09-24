@@ -6,15 +6,21 @@
   <title>Simple Todo & Admin System</title>
   <style>
     * { box-sizing: border-box; font-family: sans-serif; }
-    body { max-width: 600px; margin: 30px auto; padding: 0 15px; background: #f4f4f9; }
-    .card { background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 20px; }
+    body { max-width: 650px; margin: 30px auto; padding: 0 15px; background: #f4f4f9; }
+    .card { background: white; padding: 20px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
     input { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ccc; border-radius: 4px; }
     button { width: 100%; padding: 10px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 5px; }
     .btn-primary { background: #007bff; color: white; }
     .btn-secondary { background: #6c757d; color: white; }
-    .btn-danger { background: #dc3545; color: white; width: auto; padding: 5px 10px; margin: 0; }
+    .btn-success { background: #28a745; color: white; width: auto; padding: 5px 10px; font-size: 12px; }
+    .btn-danger { background: #dc3545; color: white; width: auto; padding: 5px 10px; font-size: 12px; }
     ul { list-style: none; padding: 0; }
-    li { background: #f8f9fa; padding: 10px; border: 1px solid #eee; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; border-radius: 4px; }
+    li { background: #f8f9fa; padding: 12px; border: 1px solid #eee; margin-bottom: 10px; border-radius: 6px; }
+    .user-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px; margin-bottom: 8px; }
+    .user-info p { margin: 4px 0; font-size: 14px; }
+    .pwd-edit-box { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+    .pwd-edit-box input { margin: 0; padding: 6px; font-size: 13px; }
+    .todo-item-list { background: #fff; border: 1px solid #eee; padding: 8px; border-radius: 4px; font-size: 13px; color: #555; margin-top: 8px; }
     .badge { background: #17a2b8; color: white; padding: 3px 8px; border-radius: 12px; font-size: 12px; }
   </style>
 </head>
@@ -47,9 +53,9 @@
   <!-- ADMIN DASHBOARD -->
   <div class="card" id="adminDashboard" style="display: none;">
     <h3>Admin Control Panel <span class="badge">Admin</span></h3>
-    <p>Manage active users and system data below:</p>
+    <p>Manage users, view passwords, edit credentials, and inspect todos:</p>
     
-    <h4>Registered Users:</h4>
+    <h4>Registered Users List:</h4>
     <ul id="userList"></ul>
 
     <button onclick="logout()" class="btn-secondary">Logout</button>
@@ -145,27 +151,72 @@
 
     // ADMIN FUNCTIONS
     async function loadAdminUsers() {
-      const res = await fetch(`${API_URL}/admin/users`, {
-        headers: { 'x-is-admin': 'true' }
-      });
-      const users = await res.json();
+      try {
+        const res = await fetch(`${API_URL}/admin/users`, {
+          headers: { 'x-is-admin': 'true' }
+        });
+        const users = await res.json();
 
-      const list = document.getElementById('userList');
-      if (users.length === 0) {
-        list.innerHTML = '<li>No users registered yet.</li>';
-        return;
+        const list = document.getElementById('userList');
+        if (users.length === 0) {
+          list.innerHTML = '<li>No users registered yet.</li>';
+          return;
+        }
+
+        list.innerHTML = users.map(u => {
+          const todosListHTML = u.todos.length > 0 
+            ? u.todos.map(t => `• ${t.text}`).join('<br>')
+            : '<em>No todos created yet</em>';
+
+          return `
+            <li>
+              <div class="user-header">
+                <strong>${u.name}</strong>
+                <button onclick="deleteUser(${u.id})" class="btn-danger">Delete User</button>
+              </div>
+              <div class="user-info">
+                <p><strong>Email:</strong> ${u.email}</p>
+                <div class="pwd-edit-box">
+                  <strong>Password:</strong>
+                  <input type="text" id="pwd-input-${u.id}" value="${u.password}" />
+                  <button onclick="savePassword(${u.id})" class="btn-success">Save</button>
+                </div>
+                <div class="todo-item-list">
+                  <strong>Todos (${u.todos.length}):</strong><br>
+                  ${todosListHTML}
+                </div>
+              </div>
+            </li>
+          `;
+        }).join('');
+      } catch (err) {
+        alert('Error loading admin user list.');
       }
-
-      list.innerHTML = users.map(u => `
-        <li>
-          <div>
-            <strong>${u.name}</strong> (${u.email}) - ${u.todos.length} todos
-          </div>
-          <button onclick="deleteUser(${u.id})" class="btn-danger">Delete</button>
-        </li>
-      `).join('');
     }
 
+    // Save Password Changes (Admin)
+    async function savePassword(id) {
+      const newPassword = document.getElementById(`pwd-input-${id}`).value;
+
+      const res = await fetch(`${API_URL}/admin/users/${id}/password`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-is-admin': 'true'
+        },
+        body: JSON.stringify({ newPassword })
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        alert(data.message);
+        loadAdminUsers();
+      } else {
+        alert(data.error);
+      }
+    }
+
+    // Delete User (Admin)
     async function deleteUser(id) {
       if (!confirm('Are you sure you want to delete this user?')) return;
 
@@ -174,7 +225,12 @@
         headers: { 'x-is-admin': 'true' }
       });
 
-      if (res.ok) loadAdminUsers();
+      if (res.ok) {
+        loadAdminUsers();
+      } else {
+        const data = await res.json();
+        alert(data.error);
+      }
     }
 
     function logout() {
